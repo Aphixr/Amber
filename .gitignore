@@ -1,0 +1,7 @@
+# Tests directory
+tests/
+
+# Shell
+*.sh
+
+
