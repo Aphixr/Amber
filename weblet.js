@@ -7,7 +7,12 @@
 console.time("Weblet");
 
 // Weblet object
-const $ = {};
+const $ = {
+    // About Weblet object
+    WEBLET: {
+        version: [1, 0, 0]
+    }
+};
 
 // Main
 (() => {
@@ -134,21 +139,185 @@ const $ = {};
         }
     };
 
+    // Element
+    $.Element = class {
+        // Constructor
+        constructor(info) {
+            this.element = document.createElement(info.name);
+            this.element.id = info.id;
+            this.element.className = info.class;
+            this.element.innerHTML = info.content;
+            this.element.style = info.style;
+            this.appendPl = info.appendPl;
+            for (const attrName in info.attrs) {
+                this.element.setAttribute(attrName, info.attrs[attrName]);
+            }
+            for (const stylePropName in info.style) {
+                this.element.style[stylePropName] = info.style[stylePropName];
+            }
+        }
+
+        // Append element
+        append(tos) {
+            const appendTos = document.querySelectorAll(tos || this.appendPl);
+            for (const appendTo of appendTos) {
+                appendTo.appendChild(this.element);
+            }
+        }
+    };
+
     // Document
     $.doc = {
+        // Selecting important elements
         head: document.head,
         body: document.body,
         title: document.title,
-        select: (sel) => document.querySelector(sel),
-        selectAll: (sel) => document.querySelectorAll(sel),
-        selecByTag: (tag) => document.getElementsByTagName(tag),
-        selectById: (id) => document.getElementById(id),
-        selectByClass: (cls) => document.getElementsByClassName(cls)
+
+        // Selecting elements
+        query: (sel) => {
+            document.querySelector(sel);
+        },
+        queryAll: (sel) => {
+            document.querySelectorAll(sel);
+        },
+        queryByTag: (tag) => {
+            document.getElementsByTagName(tag);
+        },
+        queryById: (id) => {
+            document.getElementById(id);
+        },
+        queryByClass: (cls) => {
+            document.getElementsByClassName(cls);
+        },
+
+        // Write to body element
+        write: (txt) => {
+            document.body.innerHTML += txt;
+        }
     };
 
-    document.head.innerHTML += `<style>
-        x-template { display: none }
-    </style>`;
+    // Window
+    $.window = {
+        // Web page width and height
+        width: window.innerWidth,
+        height: window.innerHeight,
+
+        // Web page information
+        url: location.href,
+        domain: document.domain,
+        hash: location.hash,
+
+        // Pop-up boxes
+        alert: (msg) => {
+            window.alert(msg.toString());
+        },
+        prompt: (msg) => {
+            window.prompt(msg.toString());
+        },
+        confirm: (msg) => {
+            return window.confirm(msg.toString());
+        },
+
+        // Opening and closing windows
+        open: (url, target="_self") => {
+            // Check data type
+            if (!checkDataType(url, "string")) {
+                throw new $.Error("First parameter of $.window.open should be a string");
+            }
+            if (!checkDataType(target, "string")) {
+                throw new $.Error("Second parameter of $.window.open should be a string");
+            }
+            
+            // Open web page
+            window.open(url, target);
+        },
+        close: () => {
+            window.close();
+        }
+    };
+
+    // Cookies
+    const cookiesObjForProxy = {};
+    $.cookies = new Proxy(cookiesObjForProxy, {
+        // Getting a cookie's value
+        get(target, property) {
+            // Variables
+            let name = encodeURIComponent(property) + "=",
+                start = document.cookie.indexOf(name),
+                value;
+            
+            // If it found the cookie
+            if (start > -1) {
+                // End of the cookie
+                let end = document.cookie.indexOf(";", start);
+
+                // If no semicolon found, the end must be at the end of the
+                // `document.cookie` string
+                if (end == -1) {
+                    end = document.cookie.length;
+                }
+
+                // Get the value of the cookie
+                value = decodeURIComponent(document.cookie.substring(start + name.length, end));
+            }
+
+            // Return the value of the cookie
+            return value;
+        },
+
+        // Setting a cookie's value
+        set(target, name, info) {
+            // If is object
+            if (checkDataType(info, "object")) {
+                // Destruct `newValue` object
+                const { value, expires, path, domain, secure } = info;
+
+                // Final
+                let final = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+
+                // Checks if it has expiration date, path, domain, and secure
+                if (expires instanceof Date) {
+                    final += `; expires=${expires.toGMTString()}`;
+                }
+                if (path) {
+                    final += `; path=${path}`;
+                }
+                if (domain) {
+                    final += `; domain=${domain}`;
+                }
+                if (secure) {
+                    final += `; secure`;
+                }
+
+                // Set the cookie
+                document.cookie += final;
+            }
+
+            // If something else
+            else {
+                document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(info.toString())}`;
+            }
+
+            // If this is a success or not
+            return Reflect.set(...arguments);
+        }
+    });
+
+    // Do things when DOM finished loading
+    window.addEventListener("DOMContentLoaded", () => {
+        // Do things for HTML templates
+        const xTemplates = document.querySelectorAll("x-template[name]");
+        for (const xTemplate of xTemplates) {
+            xTemplate.style.display = "none";
+        }
+
+        // Load all elements using a template
+        const xUsingTemps = document.querySelectorAll("x-using-template[name]");
+        for (const xUsingTemp of xUsingTemps) {
+            xUsingTemp.innerHTML =
+                document.querySelector(`x-template[name="${xUsingTemp.getAttribute("name")}"]`).innerHTML;
+        }
+    });
 
 })();
 
