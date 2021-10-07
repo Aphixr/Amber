@@ -1,4 +1,4 @@
-/* Weblet - v1.0.0 */
+/* Weblet - v0.1.0 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -10,9 +10,36 @@ console.time("Weblet");
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: [1, 0, 0]
-    }
+        version: [0, 1, 0],
+        versionString: "0.1.0",
+        isPreRelease: true
+    },
+
+    // Custom error class
+    Error: class extends Error {
+        constructor(msg) {
+            super(msg);
+            this.name = "WebletError";
+            this.message = msg;
+        }
+    },
+
+    // Other classes
+    Component: undefined,
+    Template: undefined,
+    Element: undefined,
+
+    // Other objects
+    doc: null,
+    window: null,
+    cookies: null
 };
+
+// Check if this is a pre-release
+if ($.WEBLET.isPreRelease) {
+    console.warn(`The version of Weblet you are using (${$.WEBLET.versionString}) ` +
+                 `is a pre-release.`);
+}
 
 // Main
 (() => {
@@ -32,30 +59,10 @@ const $ = {
                 return val.constructor == Object;
             case "function":
                 return typeof val == "function";
+            case "symbol":
+                return typeof val == "symbol";
             default:
-                break;
-        }
-    };
-
-    // Eval function template
-    const evalTemp = (str) => {
-        return `
-            (() => {
-                try {
-                    return ${str};
-                } catch (err) {
-                    throw new $.Error("Using <x-eval>\\n" + err);
-                }
-            })()
-        `;
-    };
-
-    // Custom Weblet error
-    $.Error = class extends Error {
-        constructor(msg) {
-            super(msg);
-            this.name = "WebletError";
-            this.message = msg;
+                throw new $.Error(`'${type}' is not a valid type`);
         }
     };
 
@@ -71,7 +78,7 @@ const $ = {
         }
 
         // Attach component
-        use(place) {
+        append(place) {
             // Get the element(s)
             const els = document.querySelectorAll(place ? place : this.place);
 
@@ -96,70 +103,32 @@ const $ = {
         }
     };
 
-    // Eval class
-    $.Eval = class {
-        // Constructor
-        constructor(info) {
-            this.name = info.name;
-            this.update = info.update;
-            this.value = info.value;
-        }
-
-        // Use
-        use() {
-            // Get <x-eval>'s
-            const xEvals = document.querySelectorAll(`x-eval[name=${this.name}]`);
-
-            // Loop through all elements
-            for (const xEval of xEvals) {
-                // Set value
-                xEval.innerHTML = eval(evalTemp(this.value));
-
-                // If update
-                if (this.update) {
-                    xEval.setAttribute("update", "update");
-                    window.setInterval(() => {
-                        xEval.innerHTML = eval(evalTemp(this.update.action(xEval.innerHTML)));
-                    }, this.update.time);
-                }
-            }
-        }
-
-        // Eval all
-        static all(name) {
-            // Get <x-eval>'s
-            const xEvals =
-                !name ? document.querySelectorAll("x-eval")
-                      : document.querySelectorAll(`x-eval[name="${name}"]`);
-            
-            // Set value
-            for (const xEval of xEvals) {
-                xEval.innerHTML = eval(evalTemp(xEval.getAttribute("value")));
-            }
-        }
-    };
-
     // Element
     $.Element = class {
         // Constructor
         constructor(info) {
             this.element = document.createElement(info.name);
-            this.element.id = info.id;
-            this.element.className = info.class;
-            this.element.innerHTML = info.content;
-            this.element.style = info.style;
-            this.appendPl = info.appendPl;
+            if (info.id) this.element.id = info.id;
+            if (info.class) this.element.className = info.class;
+            if (info.content) this.element.innerHTML = info.content;
+            if (info.style && checkDataType(info.style, "object")) {
+                this.element.style = info.style;
+            }
+            this.appendPl = info.append;
             for (const attrName in info.attrs) {
                 this.element.setAttribute(attrName, info.attrs[attrName]);
             }
             for (const stylePropName in info.style) {
                 this.element.style[stylePropName] = info.style[stylePropName];
             }
+            for (const evtName in info.events) {
+                this.element.setAttribute("on" + evtName, `(${info.events[evtName]})()`);
+            }
         }
 
         // Append element
         append(tos) {
-            const appendTos = document.querySelectorAll(tos || this.appendPl);
+            const appendTos = document.querySelectorAll(tos || this.append);
             for (const appendTo of appendTos) {
                 appendTo.appendChild(this.element);
             }
@@ -305,18 +274,81 @@ const $ = {
 
     // Do things when DOM finished loading
     window.addEventListener("DOMContentLoaded", () => {
+        // Time
+        console.time("Weblet.HTMLActions");
+
+        // Document object (for performance)
+        const doc = document;
+
+        // Replace [[ and ]]
+        doc.body.innerHTML =
+            doc.body.innerHTML
+                .replace(/\[\[/g, "<x-expr>")
+                .replace(/\]\]/g, "</x-expr>");
+        
+        // Hide <x-expr>'s
+        const xExprs = doc.querySelectorAll("x-expr");
+        for (const xExpr of xExprs) {
+            xExpr.innerText = (() => {
+                try {
+                    return eval(xExpr.innerText);
+                } catch (err) {
+                    const it = xExpr.innerText;
+                    xExpr.innerHTML = "";
+                    throw new $.Error(`For [[ ${it} ]]\n` + err);
+                }
+            })();
+        }
+
         // Do things for HTML templates
-        const xTemplates = document.querySelectorAll("x-template[name]");
+        const xTemplates = doc.querySelectorAll("x-temp");
         for (const xTemplate of xTemplates) {
             xTemplate.style.display = "none";
         }
 
         // Load all elements using a template
-        const xUsingTemps = document.querySelectorAll("x-using-template[name]");
+        const xUsingTemps = doc.querySelectorAll("[x-temp-using]");
         for (const xUsingTemp of xUsingTemps) {
-            xUsingTemp.innerHTML =
-                document.querySelector(`x-template[name="${xUsingTemp.getAttribute("name")}"]`).innerHTML;
+            // Get template name and template element
+            const name = xUsingTemp.getAttribute("x-temp-using"),
+                  temp = doc.querySelector(`x-temp[name="${name}"]`),
+                  
+                  // Parameter info
+                  paramsNames = temp.getAttribute("params").split(";"),
+                  paramEls = temp.querySelectorAll("[x-temp-param]"),
+                  argsValues = xUsingTemp.getAttribute("x-temp-args").split(";"),
+                  params = {};
+            
+            // For loops
+            let i = 0;
+
+            // Throw an error if template is not defined
+            if (!temp) {
+                throw new $.Error(`'${name}' is not a defined template`);
+            }
+
+            // Object that will have prop name as param and value as arg
+            for (; i < paramsNames.length; i++) {
+                params[paramsNames[i]] = argsValues[i];
+            }
+
+            // Loop through all param elements
+            for (i = 0; i < paramEls.length; i++) {
+                // Loop through params object
+                const pn = paramEls[i].getAttribute("x-temp-param");
+                for (const j in params) {
+                    if (pn === j) {
+                        paramEls[i].innerText = eval(params[j]);
+                    }
+                }
+            }
+
+            // Use the template
+            xUsingTemp.innerHTML = temp.innerHTML;
         }
+
+        // Time end
+        console.timeEnd("Weblet.HTMLActions");
     });
 
 })();

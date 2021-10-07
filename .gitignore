@@ -1,6 +1,9 @@
 # Tests directory
 tests/
 
+# Retired
+retired.txt
+
 # Shell
 *.sh
 
