@@ -1,4 +1,4 @@
-/* Weblet - v0.1.0 (Pre-release) */
+/* Weblet - v0.1.0.1 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -10,8 +10,7 @@ console.time("Weblet");
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: [0, 1, 0],
-        versionString: "0.1.0",
+        version: "0.1.0.1",
         isPreRelease: true
     },
 
@@ -37,8 +36,10 @@ const $ = {
 
 // Check if this is a pre-release
 if ($.WEBLET.isPreRelease) {
-    console.warn(`The version of Weblet you are using (${$.WEBLET.versionString}) ` +
-                 `is a pre-release.`);
+    console.warn(
+        `The version of Weblet you are using (${$.WEBLET.version}) ` +
+        `is a pre-release.`
+    );
 }
 
 // Main
@@ -56,20 +57,38 @@ if ($.WEBLET.isPreRelease) {
             case "array":
                 return Array.isArray(val);
             case "object":
-                return val.constructor == Object;
+                return val && val.constructor == Object;
             case "function":
                 return typeof val == "function";
             case "symbol":
                 return typeof val == "symbol";
             default:
-                throw new $.Error(`'${type}' is not a valid type`);
+                throw new Error(`'${type}' is not a valid type`);
         }
+    };
+
+    // Check if a string is a valid selector
+    const checkIsValidSelector = (sel) => {
+        try {
+            if (!sel) {
+                throw void 0;
+            }
+            document.createDocumentFragment().querySelector(sel);
+        } catch (err) {
+            throw new $.Error(`'${sel}' is not a valid selector`);
+        }
+        return true;
     };
 
     // Component class
     $.Component = class {
         // Constructor
         constructor(info) {
+            // Check data type
+            if (!checkDataType(info, "object")) {
+                throw new $.Error("$.Component constructor argument should be an object");
+            }
+
             // Get the contents from the info object
             this.template = info.template;
             this.content = info.content;
@@ -98,6 +117,11 @@ if ($.WEBLET.isPreRelease) {
     $.Template = class {
         // Constructor
         constructor(info) {
+            // Check data type
+            if (!checkDataType(info, "object")) {
+                throw new $.Error("$.Component constructor argument should be an object");
+            }
+
             // Get the contents from info object
             this.structure = info.structure;
         }
@@ -107,6 +131,12 @@ if ($.WEBLET.isPreRelease) {
     $.Element = class {
         // Constructor
         constructor(info) {
+            // Check data type
+            if (!checkDataType(info, "object")) {
+                throw new $.Error("$.Component constructor argument should be an object");
+            }
+
+            // Create the element
             this.element = document.createElement(info.name);
             if (info.id) this.element.id = info.id;
             if (info.class) this.element.className = info.class;
@@ -144,19 +174,23 @@ if ($.WEBLET.isPreRelease) {
 
         // Selecting elements
         query: (sel) => {
-            document.querySelector(sel);
+            if (checkIsValidSelector(sel)) {
+                return document.querySelector(sel);
+            }
         },
         queryAll: (sel) => {
-            document.querySelectorAll(sel);
+            if (checkIsValidSelector(sel)) {
+                return document.querySelectorAll(sel);
+            }
         },
         queryByTag: (tag) => {
-            document.getElementsByTagName(tag);
+            return document.getElementsByTagName(tag);
         },
         queryById: (id) => {
-            document.getElementById(id);
+            return document.getElementById(id);
         },
         queryByClass: (cls) => {
-            document.getElementsByClassName(cls);
+            return document.getElementsByClassName(cls);
         },
 
         // Write to body element
@@ -168,8 +202,8 @@ if ($.WEBLET.isPreRelease) {
     // Window
     $.window = {
         // Web page width and height
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: innerWidth,
+        height: innerHeight,
 
         // Web page information
         url: location.href,
@@ -178,13 +212,13 @@ if ($.WEBLET.isPreRelease) {
 
         // Pop-up boxes
         alert: (msg) => {
-            window.alert(msg.toString());
+            alert(msg);
         },
         prompt: (msg) => {
-            window.prompt(msg.toString());
+            prompt(msg);
         },
         confirm: (msg) => {
-            return window.confirm(msg.toString());
+            return confirm(msg);
         },
 
         // Opening and closing windows
@@ -198,10 +232,10 @@ if ($.WEBLET.isPreRelease) {
             }
             
             // Open web page
-            window.open(url, target);
+            open(url, target);
         },
         close: () => {
-            window.close();
+            close();
         }
     };
 
