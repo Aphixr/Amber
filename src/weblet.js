@@ -1,32 +1,29 @@
-/* Weblet - v0.1.0.1 (Pre-release) */
+/* Weblet - v0.2.0.0 (Pre-release) */
 
 // Use strict mode
 "use strict";
 
 // Begin time
-console.time("Weblet");
+console.time("Weblet:Load");
+
+// If $ object is already defined
+if (window.$) {
+    throw new Error(
+        "Do not define your variables with '$', it is used in Weblet"
+    );
+}
 
 // Weblet object
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: "0.1.0.1",
+        version: "0.2.0.0",
         isPreRelease: true
-    },
-
-    // Custom error class
-    Error: class extends Error {
-        constructor(msg) {
-            super(msg);
-            this.name = "WebletError";
-            this.message = msg;
-        }
     },
 
     // Other classes
     Component: undefined,
     Template: undefined,
-    Element: undefined,
 
     // Other objects
     doc: null,
@@ -49,19 +46,19 @@ if ($.WEBLET.isPreRelease) {
     const checkDataType = (val, type) => {
         switch (type.toLowerCase()) {
             case "number":
-                return typeof val == "number";
+                return typeof val === "number";
             case "string":
-                return typeof val == "string";
+                return typeof val === "string";
             case "boolean":
-                return typeof val == "boolean";
+                return typeof val === "boolean";
             case "array":
                 return Array.isArray(val);
             case "object":
                 return val && val.constructor == Object;
             case "function":
-                return typeof val == "function";
+                return typeof val === "function";
             case "symbol":
-                return typeof val == "symbol";
+                return typeof val === "symbol";
             default:
                 throw new Error(`'${type}' is not a valid type`);
         }
@@ -75,9 +72,20 @@ if ($.WEBLET.isPreRelease) {
             }
             document.createDocumentFragment().querySelector(sel);
         } catch (err) {
-            throw new $.Error(`'${sel}' is not a valid selector`);
+            throw new $[error](`'${sel}' is not a valid selector`);
         }
         return true;
+    };
+
+    // Custom Weblet error class
+    // Symbol used so that error class cannot be used from outside
+    const error = Symbol();
+    $[error] = class extends Error {
+        constructor(msg) {
+            super(msg);
+            this.name = "WebletError";
+            this.message = msg;
+        }
     };
 
     // Component class
@@ -86,7 +94,7 @@ if ($.WEBLET.isPreRelease) {
         constructor(info) {
             // Check data type
             if (!checkDataType(info, "object")) {
-                throw new $.Error("$.Component constructor argument should be an object");
+                throw new $[error]("$.Component constructor argument should be an object");
             }
 
             // Get the contents from the info object
@@ -119,49 +127,11 @@ if ($.WEBLET.isPreRelease) {
         constructor(info) {
             // Check data type
             if (!checkDataType(info, "object")) {
-                throw new $.Error("$.Component constructor argument should be an object");
+                throw new $[error]("$.Template constructor argument should be an object");
             }
 
             // Get the contents from info object
             this.structure = info.structure;
-        }
-    };
-
-    // Element
-    $.Element = class {
-        // Constructor
-        constructor(info) {
-            // Check data type
-            if (!checkDataType(info, "object")) {
-                throw new $.Error("$.Component constructor argument should be an object");
-            }
-
-            // Create the element
-            this.element = document.createElement(info.name);
-            if (info.id) this.element.id = info.id;
-            if (info.class) this.element.className = info.class;
-            if (info.content) this.element.innerHTML = info.content;
-            if (info.style && checkDataType(info.style, "object")) {
-                this.element.style = info.style;
-            }
-            this.appendPl = info.append;
-            for (const attrName in info.attrs) {
-                this.element.setAttribute(attrName, info.attrs[attrName]);
-            }
-            for (const stylePropName in info.style) {
-                this.element.style[stylePropName] = info.style[stylePropName];
-            }
-            for (const evtName in info.events) {
-                this.element.setAttribute("on" + evtName, `(${info.events[evtName]})()`);
-            }
-        }
-
-        // Append element
-        append(tos) {
-            const appendTos = document.querySelectorAll(tos || this.append);
-            for (const appendTo of appendTos) {
-                appendTo.appendChild(this.element);
-            }
         }
     };
 
@@ -196,6 +166,56 @@ if ($.WEBLET.isPreRelease) {
         // Write to body element
         write: (txt) => {
             document.body.innerHTML += txt;
+        },
+
+        // Create an element
+        Element: class {
+            // Constructor
+            // `el` should be a string
+            constructor(el) {
+                // Check data type
+                if (!checkDataType(el, "string")) {
+                    throw new $[error]("Argument should be a string");
+                }
+
+                // Trim
+                el = el.trim();
+                
+                // Check first character
+                if (el[0] !== "<" || el[el.length - 1] !== ">") {
+                    throw new $[error](`'${el}' is not valid HTML syntax`);
+                }
+
+                // Regex
+                // Note: at least one bug in here
+                const regexBeginTag = /<([A-z]|-)+(\s|>)/gi,
+                         regexAttrs = /([A-z]|-|:)+((="([^"]*)")|(='([^']*)'))/gi,
+                        regexEndTag = /(((?<!")(<\/([A-z]|-)>)))?/gi;
+
+                // Check if it is valid syntax
+                if (
+                    !el.match(regexBeginTag) ||
+                    !el.match(regexAttrs) ||
+                    !el.match(regexEndTag)
+                ) {
+                    throw new $[error](`'${el}' is not valid HTML syntax`);
+                }
+
+                // Properties
+                this.elStr = el;
+                this.element =
+                    document.createElement(el.substr(1, el.search(/(\s|>)/) - 1));
+            }
+
+            // Append to
+            appendTo(place) {
+                if (checkIsValidSelector(place)) {
+                    const pls = document.querySelectorAll(place);
+                    for (const pl of pls) {
+                        pl.appendChild(this.element);
+                    }
+                }
+            }
         }
     };
 
@@ -225,10 +245,10 @@ if ($.WEBLET.isPreRelease) {
         open: (url, target="_self") => {
             // Check data type
             if (!checkDataType(url, "string")) {
-                throw new $.Error("First parameter of $.window.open should be a string");
+                throw new $[error]("First parameter of $.window.open should be a string");
             }
             if (!checkDataType(target, "string")) {
-                throw new $.Error("Second parameter of $.window.open should be a string");
+                throw new $[error]("Second parameter of $.window.open should be a string");
             }
             
             // Open web page
@@ -307,42 +327,75 @@ if ($.WEBLET.isPreRelease) {
     });
 
     // Do things when DOM finished loading
+    // Note: this code should be executed as fast as possible
+    // Avoid writing code that will slow it down
     window.addEventListener("DOMContentLoaded", () => {
+
         // Time
-        console.time("Weblet.HTMLActions");
+        console.time("Weblet:HTMLActions");
 
         // Document object (for performance)
         const doc = document;
 
-        // Replace [[ and ]]
+        // Replace [[ and ]] with <x-expr> tags
         doc.body.innerHTML =
             doc.body.innerHTML
                 .replace(/\[\[/g, "<x-expr>")
                 .replace(/\]\]/g, "</x-expr>");
         
-        // Hide <x-expr>'s
-        const xExprs = doc.querySelectorAll("x-expr");
-        for (const xExpr of xExprs) {
-            xExpr.innerText = (() => {
+        // Evaluate expressions
+        // Note: there might be a faster to do this,
+        // by finding with regex, then replace that with it's result with innerText,
+        // instead of replacing, query, looping, then innerText
+        for (const xExpr of doc.querySelectorAll("x-expr")) {
+            xExpr.innerText = ((it) => {
+                // Throw an error if something is wrong with the expression
                 try {
-                    return eval(xExpr.innerText);
+                    return eval(it);
                 } catch (err) {
-                    const it = xExpr.innerText;
                     xExpr.innerHTML = "";
-                    throw new $.Error(`For [[ ${it} ]]\n` + err);
+                    throw new $[error](`For [[ ${it} ]]\n` + err);
                 }
-            })();
+            })(xExpr.innerText);
         }
 
-        // Do things for HTML templates
-        const xTemplates = doc.querySelectorAll("x-temp");
-        for (const xTemplate of xTemplates) {
+        // If-then
+        for (const xIf of doc.querySelectorAll("[x-if]")) {
+
+            // Get attributes
+            const ifAttr = xIf.getAttribute("x-if"),
+                  thenCSSAttr = xIf.getAttribute("x-then-css"),
+                  thenJSAttr = xIf.getAttribute("x-then-js");
+            
+            // If x-if attribute evaluates to true, run CSS and/or JS
+            // Inline functions used to catch JS errors
+            if (!!(() => {
+                try {
+                    return eval(ifAttr);
+                } catch (err) {
+                    throw new $[error](`For x-if="${ifAttr}"\n${err}`);
+                }
+            })()) {
+                thenCSSAttr ? xIf.setAttribute("style", thenCSSAttr) : undefined;
+                thenJSAttr ? (() => {
+                    try {
+                        eval(thenJSAttr);
+                    } catch (err) {
+                        throw new $[error](`For x-then-js="${thenJSAttr}"\n${err}`);
+                    }
+                })() : undefined;
+            }
+
+        }
+
+        // Hide all templates
+        for (const xTemplate of doc.querySelectorAll("x-temp")) {
             xTemplate.style.display = "none";
         }
 
-        // Load all elements using a template
-        const xUsingTemps = doc.querySelectorAll("[x-temp-using]");
-        for (const xUsingTemp of xUsingTemps) {
+        // Load all templates
+        for (const xUsingTemp of doc.querySelectorAll("[x-temp-using]")) {
+
             // Get template name and template element
             const name = xUsingTemp.getAttribute("x-temp-using"),
                   temp = doc.querySelector(`x-temp[name="${name}"]`),
@@ -350,25 +403,23 @@ if ($.WEBLET.isPreRelease) {
                   // Parameter info
                   paramsNames = temp.getAttribute("params").split(";"),
                   paramEls = temp.querySelectorAll("[x-temp-param]"),
-                  argsValues = xUsingTemp.getAttribute("x-temp-args").split(";"),
                   params = {};
-            
-            // For loops
-            let i = 0;
 
             // Throw an error if template is not defined
             if (!temp) {
-                throw new $.Error(`'${name}' is not a defined template`);
+                throw new $[error](`'${name}' is not a defined template`);
             }
 
             // Object that will have prop name as param and value as arg
-            for (; i < paramsNames.length; i++) {
-                params[paramsNames[i]] = argsValues[i];
+            // For loop written this way for performance
+            for (let i = 0, l = paramsNames.length; i < l; i++) {
+                params[paramsNames[i]] =
+                    xUsingTemp.getAttribute("x-temp-args").split(";")[i];
             }
 
-            // Loop through all param elements
-            for (i = 0; i < paramEls.length; i++) {
-                // Loop through params object
+            // This will put the argument in where the param is used
+            // For loop written this way for performance
+            for (let i = 0, l = paramEls.length; i < l; i++) {
                 const pn = paramEls[i].getAttribute("x-temp-param");
                 for (const j in params) {
                     if (pn === j) {
@@ -379,16 +430,18 @@ if ($.WEBLET.isPreRelease) {
 
             // Use the template
             xUsingTemp.innerHTML = temp.innerHTML;
+            
         }
 
         // Time end
-        console.timeEnd("Weblet.HTMLActions");
+        console.timeEnd("Weblet:HTMLActions");
+        
     });
 
 })();
 
 // End time
-console.timeEnd("Weblet");
+console.timeEnd("Weblet:Load");
 
 
 

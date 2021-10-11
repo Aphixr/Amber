@@ -1,5 +1,6 @@
-# Tests directory
+# Directories
 tests/
+min/
 
 # Retired
 retired.txt
