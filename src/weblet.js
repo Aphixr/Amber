@@ -1,4 +1,4 @@
-/* Weblet - v0.2.0.0 (Pre-release) */
+/* Weblet - v0.2.1 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -17,7 +17,7 @@ if (window.$) {
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: "0.2.0.0",
+        version: "0.2.1",
         isPreRelease: true
     },
 
@@ -26,17 +26,22 @@ const $ = {
     Template: undefined,
 
     // Other objects
-    doc: null,
+    doc: {},
     window: null,
     cookies: null
 };
 
 // Check if this is a pre-release
 if ($.WEBLET.isPreRelease) {
+    // In pre-releases, you may comment this out
+    // Because this can change the console.time("Weblet:Load")
+    // by about 0.6 milliseconds
+    // /*
     console.warn(
         `The version of Weblet you are using (${$.WEBLET.version}) ` +
         `is a pre-release.`
     );
+    // */
 }
 
 // Main
@@ -120,7 +125,7 @@ if ($.WEBLET.isPreRelease) {
             }
         }
     };
-        
+    
     // Template class
     $.Template = class {
         // Constructor
@@ -135,32 +140,197 @@ if ($.WEBLET.isPreRelease) {
         }
     };
 
+    // Symbol for identifying if an object is $.doc query object
+    const isQueryObject = Symbol();
+
+    // Weblet element
+    // For document query functions
+    // Returns an object with methods and properties that
+    // can read or change the element(s) selected
+    const queryReturnObject = (domEl) => {
+        // Check data types
+        if (!(domEl instanceof Element) && !(domEl instanceof NodeList)) {
+            throw new Error("`domEl` must be a DOM element or node list");
+        }
+        
+        // Proxy handler
+        const proxyHandler = {
+            // Getting a property
+            get(target, property) {
+                // Check property
+                switch (property) {
+                    // Give inner HTML
+                    case "html":
+                        return domEl.innerHTML;
+                    
+                    // Give inner text
+                    case "text":
+                        return domEl.innerText;
+                    
+                    // Get ID
+                    case "id":
+                        return domEl.id;
+                    
+                    // Get class name
+                    case "class":
+                        return domEl.className;
+                    
+                    // Add event listener
+                    case "on":
+                        return (name, callback) => {
+                            // Check data types
+                            if (!checkDataType(name, "string")) {
+                                throw new $[error]("First argument must be a string");
+                            }
+                            if (!checkDataType(name, "function")) {
+                                throw new $[error]("Second argument must be a callback function");
+                            }
+
+                            // Add event listener
+                            domEl.addEventListener(name, callback);
+                            domEl.addEv
+                        };
+                    
+                    // Remove event listener
+                    case "off":
+                        return (name, callback) => {
+                            // Check data types
+                            if (!checkDataType(name, "string")) {
+                                throw new $[error]("First argument must be a string");
+                            }
+                            if (!checkDataType(name, "function")) {
+                                throw new $[error]("Second argument must be a callback function");
+                            }
+
+                            // Add event listener
+                            domEl.removeEventListener(name, callback);
+                        };
+                    
+                    // Remove element
+                    case "remove":
+                        return () => {
+                            domEl.remove();
+                        };
+                    
+                    // Query this element
+                    case "query": 
+                        return (sel) => {
+                            if (checkIsValidSelector(sel)) {
+                                return queryReturnObject(domEl.querySelector(sel));
+                            }
+                        };
+                    
+                    // Query all this element
+                    case "queryAll":
+                        return (sel) => {
+                            if (checkIsValidSelector(sel)) {
+                                return queryReturnObject(domEl.querySelectorAll(sel));
+                            }
+                        };
+                    
+                    // Query this element by tag
+                    case "queryByTag":
+                        return (tag) => {
+                            return queryReturnObject(domEl.getElementsByTagName(tag));
+                        };
+                    
+                    // Query this element by id
+                    case "queryById":
+                        return (id) => {
+                            return queryReturnObject(domEl.getElementById(id));
+                        };
+                    
+                    // Query this element by class
+                    case "queryByClass":
+                        return (cls) => {
+                            return queryReturnObject(domEl.getElementsByClassName(cls));
+                        };
+                    
+                    // Invalid property name
+                    default:
+                        throw new $[error](`'${property}' is not a valid property name'`);
+                }
+            },
+
+            // Setting a property
+            set(target, property, value) {
+                // Check property
+                switch (property) {
+                    // Set inner HTML
+                    case "html":
+                        domEl.innerHTML = value;
+                        break;
+                    
+                    // Set inner text
+                    case "text":
+                        domEl.innerText = value;
+                        break;
+                    
+                    // Set ID
+                    case "id":
+                        domEl.id = value;
+                        break;
+                    
+                    // Set class
+                    // Use += " ..." to add a class
+                    // Try to find fix so they don't have to
+                    // put space to add class
+                    case "class":
+                        domEl.className = value;
+                        return;
+                }
+            }
+        };
+
+        // Return the object for just one element
+        if (domEl instanceof Element) {
+            return new Proxy(domEl, proxyHandler);
+        }
+
+        // Return the object for multiple selected elements
+        if (domEl instanceof NodeList) {
+            const domElsReturnArray = [];
+
+            // Add to return array
+            for (let i = 0, l = domEl.length; i < l; i++) {
+                domElsReturnArray.push(new Proxy(domEl, proxyHandler));
+            }
+
+            // Return array
+            return domElsReturnArray;
+        }
+    };
+
     // Document
     $.doc = {
         // Selecting important elements
-        head: document.head,
-        body: document.body,
+        head: queryReturnObject(document.head),
+        body: null, // Defined later when DOMContentLoaded
+        form: null, // Defined later when DOMContentLoaded
         title: document.title,
+
+        // Character set
+        charset: document.characterSet,
 
         // Selecting elements
         query: (sel) => {
             if (checkIsValidSelector(sel)) {
-                return document.querySelector(sel);
+                return queryReturnObject(document.querySelector(sel));
             }
         },
         queryAll: (sel) => {
             if (checkIsValidSelector(sel)) {
-                return document.querySelectorAll(sel);
+                return queryReturnObject(document.querySelectorAll(sel));
             }
         },
         queryByTag: (tag) => {
-            return document.getElementsByTagName(tag);
+            return queryReturnObject(document.getElementsByTagName(tag));
         },
         queryById: (id) => {
-            return document.getElementById(id);
+            return queryReturnObject(document.getElementById(id));
         },
         queryByClass: (cls) => {
-            return document.getElementsByClassName(cls);
+            return queryReturnObject(document.getElementsByClassName(cls));
         },
 
         // Write to body element
@@ -368,8 +538,8 @@ if ($.WEBLET.isPreRelease) {
                   thenJSAttr = xIf.getAttribute("x-then-js");
             
             // If x-if attribute evaluates to true, run CSS and/or JS
-            // Inline functions used to catch JS errors
-            if (!!(() => {
+            // IIFEs used to catch JS errors
+            if ((() => {
                 try {
                     return eval(ifAttr);
                 } catch (err) {
@@ -435,6 +605,13 @@ if ($.WEBLET.isPreRelease) {
 
         // Time end
         console.timeEnd("Weblet:HTMLActions");
+
+        // Add body and form to $.doc
+        $.doc.body = queryReturnObject(document.body);
+        $.doc.form = 
+            document.forms[0]
+                ? queryReturnObject(document.forms[0])
+                : null;
         
     });
 
