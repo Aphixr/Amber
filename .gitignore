@@ -2,8 +2,9 @@
 tests/
 min/
 
-# Retired
+# Text files
 retired.txt
+plans.txt
 
 # Shell
 *.sh

@@ -1,7 +1,13 @@
-/* Weblet - v0.2.1 (Pre-release) */
+/* Weblet - v0.2.2 (Pre-release) */
 
 // Use strict mode
 "use strict";
+
+// Warn user about this is a pre-release
+// IMPORTANT REMINDER: Remove once v1.0.0 is released!
+console.warn(
+    "You are using Weblet v0.2.2 (pre-release). Do not use in production."
+);
 
 // Begin time
 console.time("Weblet:Load");
@@ -17,32 +23,19 @@ if (window.$) {
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: "0.2.1",
+        version: "0.2.2",
         isPreRelease: true
     },
 
-    // Other classes
+    // Classes
     Component: undefined,
     Template: undefined,
 
-    // Other objects
+    // Objects
     doc: {},
     window: null,
     cookies: null
 };
-
-// Check if this is a pre-release
-if ($.WEBLET.isPreRelease) {
-    // In pre-releases, you may comment this out
-    // Because this can change the console.time("Weblet:Load")
-    // by about 0.6 milliseconds
-    // /*
-    console.warn(
-        `The version of Weblet you are using (${$.WEBLET.version}) ` +
-        `is a pre-release.`
-    );
-    // */
-}
 
 // Main
 (() => {
@@ -93,6 +86,9 @@ if ($.WEBLET.isPreRelease) {
         }
     };
 
+    // Symbol for identifying if an object is $.doc element object
+    const isDocElement = Symbol();
+
     // Component class
     $.Component = class {
         // Constructor
@@ -106,23 +102,7 @@ if ($.WEBLET.isPreRelease) {
             this.template = info.template;
             this.content = info.content;
             this.place = info.place;
-            this.events = info.events;
-        }
-
-        // Attach component
-        append(place) {
-            // Get the element(s)
-            const els = document.querySelectorAll(place ? place : this.place);
-
-            // Put component into the selected element(s)
-            for (const el of els) {
-                if (checkDataType(this.content, "function")) {
-                    el.innerHTML += this.content(this.template.structure);
-                }
-                if (checkDataType(this.content, "string")) {
-                    el.innerHTML += this.content;
-                }
-            }
+            this.holders = info.holders;
         }
     };
     
@@ -140,9 +120,6 @@ if ($.WEBLET.isPreRelease) {
         }
     };
 
-    // Symbol for identifying if an object is $.doc query object
-    const isQueryObject = Symbol();
-
     // Weblet element
     // For document query functions
     // Returns an object with methods and properties that
@@ -159,6 +136,10 @@ if ($.WEBLET.isPreRelease) {
             get(target, property) {
                 // Check property
                 switch (property) {
+                    // Used for verifying an object is $.doc element
+                    case isDocElement:
+                        return true;
+
                     // Give inner HTML
                     case "html":
                         return domEl.innerHTML;
@@ -188,7 +169,6 @@ if ($.WEBLET.isPreRelease) {
 
                             // Add event listener
                             domEl.addEventListener(name, callback);
-                            domEl.addEv
                         };
                     
                     // Remove event listener
@@ -204,6 +184,41 @@ if ($.WEBLET.isPreRelease) {
 
                             // Add event listener
                             domEl.removeEventListener(name, callback);
+                        };
+                    
+                    // Append element or component
+                    case "append":
+                        return (obj) => {
+                            // If object is instance of component,
+                            // attach the component
+                            if (obj instanceof $.Component) {
+                                // Regex for searching '{{ ... }}'
+                                const holderRegex = /{{\s*([^\s]*)\s*}}/g;
+
+                                // Replace holders with its value
+                                domEl.innerHTML +=
+                                    obj.content.replace(
+                                        holderRegex,
+                                        // (a, b): eval a, return b, syntax
+                                        // a: test for content to get RegExp.$1,
+                                        // b: IIFE, return value, throw error if could not find holder
+                                        (holderRegex.test(obj.content), (() => {
+                                            // Note: RegExp.$n is non-standard, but widely supported
+                                            const name = RegExp.$1;
+                                            const res = obj.holders[name];
+
+                                            // Throw error if could not find holder
+                                            if (!res) {
+                                                throw new $[error](
+                                                    `Could not find holder named '${name}'`
+                                                );
+                                            }
+
+                                            // Otherwise return value
+                                            return res;
+                                        })())
+                                    );
+                            }
                         };
                     
                     // Remove element
@@ -248,7 +263,11 @@ if ($.WEBLET.isPreRelease) {
                     
                     // Invalid property name
                     default:
-                        throw new $[error](`'${property}' is not a valid property name'`);
+                        if (checkDataType(property, "symbol")) {
+                            throw new $[error](`[symbol] is not a valid property name'`);
+                        } else {
+                            throw new $[error](`'${property}' is not a valid property name'`);
+                        }
                 }
             },
 
@@ -517,6 +536,7 @@ if ($.WEBLET.isPreRelease) {
         // Note: there might be a faster to do this,
         // by finding with regex, then replace that with it's result with innerText,
         // instead of replacing, query, looping, then innerText
+        // Edit: might be possible, look at line 199
         for (const xExpr of doc.querySelectorAll("x-expr")) {
             xExpr.innerText = ((it) => {
                 // Throw an error if something is wrong with the expression
@@ -607,11 +627,13 @@ if ($.WEBLET.isPreRelease) {
         console.timeEnd("Weblet:HTMLActions");
 
         // Add body and form to $.doc
+        /*
         $.doc.body = queryReturnObject(document.body);
+        console.log(1);
         $.doc.form = 
             document.forms[0]
                 ? queryReturnObject(document.forms[0])
-                : null;
+                : null; */
         
     });
 
