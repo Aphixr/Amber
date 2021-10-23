@@ -195,9 +195,13 @@ const $ = {
                                 // Regex for searching '{{ ... }}'
                                 const holderRegex = /{{\s*([^\s]*)\s*}}/g;
 
-                                // Replace holders with its value
-                                domEl.innerHTML +=
-                                    obj.content.replace(
+                                // Component element
+                                const compEl = document.createElement("x-component");
+                                compEl.setAttribute("nth", ($.doc[nthComponent]++).toString(36));
+                                
+                                // Function for getting component's inner HTML
+                                const getCompElInnerHTML = () => {
+                                    return obj.content.replace(
                                         holderRegex,
                                         // (a, b): eval a, return b, syntax
                                         // a: test for content to get RegExp.$1,
@@ -215,9 +219,32 @@ const $ = {
                                             }
 
                                             // Otherwise return value
-                                            return res;
+                                            return res.toString();
                                         })())
+                                        
                                     );
+                                };
+
+                                // Set inner HTML
+                                compEl.innerHTML = getCompElInnerHTML();
+                                
+                                // Append component element
+                                domEl.appendChild(compEl);
+                                
+                                // Create setInterval if obj has loop
+                                const loopm = obj.loop;
+                                if (
+                                    loopm && checkDataType(loopm, "function") &&
+                                    checkDataType(loopm(), "object") &&
+                                    checkDataType(loopm().handler, "function")
+                                ) {
+                                    setInterval(() => {
+                                        obj.loop().handler();
+                                        domEl
+                                            .querySelector(`x-component[nth="${$.doc[nthComponent]-1}"]`)
+                                            .innerHTML = getCompElInnerHTML();
+                                    }, Number(obj.loop().time));
+                                }
                             }
                         };
                     
@@ -320,8 +347,14 @@ const $ = {
         }
     };
 
+    // Nth component symbol
+    const nthComponent = Symbol();
+
     // Document
     $.doc = {
+        // Nth component
+        [nthComponent]: 0,
+
         // Selecting important elements
         head: queryReturnObject(document.head),
         body: null, // Defined later when DOMContentLoaded
