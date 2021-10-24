@@ -1,4 +1,4 @@
-/* Weblet - v0.2.2 (Pre-release) */
+/* Weblet - v0.2.3 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -6,7 +6,7 @@
 // Warn user about this is a pre-release
 // IMPORTANT REMINDER: Remove once v1.0.0 is released!
 console.warn(
-    "You are using Weblet v0.2.2 (pre-release). Do not use in production."
+    "You are using Weblet v0.2.3 (pre-release). Do not use in production."
 );
 
 // Begin time
@@ -23,7 +23,7 @@ if (window.$) {
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: "0.2.2",
+        version: "0.2.3",
         isPreRelease: true
     },
 
@@ -203,6 +203,10 @@ const $ = {
                     // Used for verifying an object is $.doc element
                     case isDocElement:
                         return true;
+                    
+                    // Give the actual DOM element
+                    case "domElement":
+                        return domEl;
 
                     // Give inner HTML
                     case "html":
@@ -227,12 +231,13 @@ const $ = {
                             if (!checkDataType(name, "string")) {
                                 throw new $[error]("First argument must be a string");
                             }
-                            if (!checkDataType(name, "function")) {
+                            if (!checkDataType(callback, "function")) {
                                 throw new $[error]("Second argument must be a callback function");
                             }
 
                             // Add event listener
-                            domEl.addEventListener(name, callback);
+                            // Try to use element.addEventListener
+                            domEl.setAttribute("on" + name, `(${callback})()`);
                         };
                     
                     // Remove event listener
@@ -242,12 +247,13 @@ const $ = {
                             if (!checkDataType(name, "string")) {
                                 throw new $[error]("First argument must be a string");
                             }
-                            if (!checkDataType(name, "function")) {
+                            if (!checkDataType(callback, "function")) {
                                 throw new $[error]("Second argument must be a callback function");
                             }
 
-                            // Add event listener
-                            domEl.removeEventListener(name, callback);
+                            // Remove event listener
+                            // Try to use element.removeEventListener
+                            domEl.setAttribute("on" + name, "0");
                         };
                     
                     // Append element or component
@@ -277,12 +283,33 @@ const $ = {
                                     }, Number(obj.loop().time));
                                 }
                             }
+
+                            // If object is instance of element,
+                            // attach the element
+                            if (obj.domElement.isDOMCE) {
+                                domEl.appendChild(obj.domElement);
+                            }
                         };
                     
                     // Remove element
                     case "remove":
                         return () => {
                             domEl.remove();
+                        };
+                    
+                    // Append to
+                    // REMOVE in v0.3.0
+                    case "appendTo":
+                        if (!domEl.isDOMCE) {
+                            throw new $[error]("'appendTo' is not a valid property name");
+                        }
+                        return (place) => {
+                            if (checkIsValidSelector(place)) {
+                                const pls = document.querySelectorAll(place);
+                                for (const pl of pls) {
+                                    pl.appendChild(domEl);
+                                }
+                            }
                         };
                     
                     // Query this element
@@ -427,46 +454,19 @@ const $ = {
             constructor(el) {
                 // Check data type
                 if (!checkDataType(el, "string")) {
-                    throw new $[error]("Argument should be a string");
+                    throw new $[error]("First argument should be a string");
                 }
 
-                // Trim
+                // Trim and replace
                 el = el.trim();
+                el = el.replace(/([^A-z0-9-])/g);
+
+                // DOM element
+                this.domElement = document.createElement(el);
+                this.domElement.isDOMCE = true;
                 
-                // Check first character
-                if (el[0] !== "<" || el[el.length - 1] !== ">") {
-                    throw new $[error](`'${el}' is not valid HTML syntax`);
-                }
-
-                // Regex
-                // Note: at least one bug in here
-                const regexBeginTag = /<([A-z]|-)+(\s|>)/gi,
-                         regexAttrs = /([A-z]|-|:)+((="([^"]*)")|(='([^']*)'))/gi,
-                        regexEndTag = /(((?<!")(<\/([A-z]|-)>)))?/gi;
-
-                // Check if it is valid syntax
-                if (
-                    !el.match(regexBeginTag) ||
-                    !el.match(regexAttrs) ||
-                    !el.match(regexEndTag)
-                ) {
-                    throw new $[error](`'${el}' is not valid HTML syntax`);
-                }
-
-                // Properties
-                this.elStr = el;
-                this.element =
-                    document.createElement(el.substr(1, el.search(/(\s|>)/) - 1));
-            }
-
-            // Append to
-            appendTo(place) {
-                if (checkIsValidSelector(place)) {
-                    const pls = document.querySelectorAll(place);
-                    for (const pl of pls) {
-                        pl.appendChild(this.element);
-                    }
-                }
+                // Return
+                return queryReturnObject(this.domElement);
             }
         }
     };
