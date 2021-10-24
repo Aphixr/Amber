@@ -34,7 +34,10 @@ const $ = {
     // Objects
     doc: {},
     window: null,
-    cookies: null
+    cookies: null,
+
+    // On ready
+    onready: undefined
 };
 
 // Main
@@ -88,6 +91,47 @@ const $ = {
 
     // Symbol for identifying if an object is $.doc element object
     const isDocElement = Symbol();
+    
+    // Function for getting component's inner HTML
+    const replaceHolders = (cont, holdersObj) => {
+        const holderRegex = /{{\s*([^\s]*)\s*}}/;
+        let res = cont;
+        while (holderRegex.test(res)) {
+            res = res.replace(
+                holderRegex,
+                // (a, b): eval a, return b, syntax
+                // a: test for content to get RegExp.$1,
+                // b: IIFE, return value, throw error if could not find holder
+                (holderRegex.test(res), (() => {
+                    // Note: RegExp.$n is non-standard, but widely supported
+                    const name = RegExp.$1;
+                    const res = holdersObj[name];
+
+                    // Throw error if could not find holder
+                    if (typeof res === "undefined") {
+                        throw new $[error](
+                            `Could not find holder named '${name}'`
+                        );
+                    }
+
+                    // Otherwise return value
+                    return res.toString();
+                })())
+            );
+        }
+        return res;
+    };
+
+    // On ready
+    $.onready = (handler) => {
+        // Check handler data type
+        if (!checkDataType(handler, "function")) {
+            throw new $[error]("Argument must be a function");
+        }
+
+        // DOMContentLoaded
+        window.addEventListener("DOMContentLoaded", handler);
+    };
 
     // Component class
     $.Component = class {
@@ -101,8 +145,28 @@ const $ = {
             // Get the contents from the info object
             this.template = info.template;
             this.content = info.content;
-            this.place = info.place;
             this.holders = info.holders;
+
+            // Component element
+            this.element = document.createElement("x-component");
+            this.id = $.doc[nthComponent];
+            this.element.setAttribute("nth", (this.id).toString(36));
+            
+            // Update id
+            $.doc[nthComponent]++;
+        }
+
+        // Update
+        update() {
+            const comp = document.querySelector(`x-component[nth="${this.id}"]`);
+
+            // If component has not been appended yet, use this.element
+            // otherwise, use document.querySelector()
+            if (!comp) {
+                this.element.innerHTML = replaceHolders(this.content, this.holders);
+            } else {
+                comp.innerHTML = replaceHolders(this.content, this.holders);
+            }
         }
     };
     
@@ -192,44 +256,13 @@ const $ = {
                             // If object is instance of component,
                             // attach the component
                             if (obj instanceof $.Component) {
-                                // Regex for searching '{{ ... }}'
-                                const holderRegex = /{{\s*([^\s]*)\s*}}/g;
-
-                                // Component element
-                                const compEl = document.createElement("x-component");
-                                compEl.setAttribute("nth", ($.doc[nthComponent]++).toString(36));
-                                
-                                // Function for getting component's inner HTML
-                                const getCompElInnerHTML = () => {
-                                    return obj.content.replace(
-                                        holderRegex,
-                                        // (a, b): eval a, return b, syntax
-                                        // a: test for content to get RegExp.$1,
-                                        // b: IIFE, return value, throw error if could not find holder
-                                        (holderRegex.test(obj.content), (() => {
-                                            // Note: RegExp.$n is non-standard, but widely supported
-                                            const name = RegExp.$1;
-                                            const res = obj.holders[name];
-
-                                            // Throw error if could not find holder
-                                            if (!res) {
-                                                throw new $[error](
-                                                    `Could not find holder named '${name}'`
-                                                );
-                                            }
-
-                                            // Otherwise return value
-                                            return res.toString();
-                                        })())
-                                        
-                                    );
-                                };
-
                                 // Set inner HTML
-                                compEl.innerHTML = getCompElInnerHTML();
+                                obj.element.innerHTML =
+                                    replaceHolders(obj.content, obj.holders);
                                 
                                 // Append component element
-                                domEl.appendChild(compEl);
+                                domEl.appendChild(obj.element);
+                                obj.element = null;
                                 
                                 // Create setInterval if obj has loop
                                 const loopm = obj.loop;
@@ -240,9 +273,7 @@ const $ = {
                                 ) {
                                     setInterval(() => {
                                         obj.loop().handler();
-                                        domEl
-                                            .querySelector(`x-component[nth="${$.doc[nthComponent]-1}"]`)
-                                            .innerHTML = getCompElInnerHTML();
+                                        obj.update();
                                     }, Number(obj.loop().time));
                                 }
                             }
@@ -357,8 +388,7 @@ const $ = {
 
         // Selecting important elements
         head: queryReturnObject(document.head),
-        body: null, // Defined later when DOMContentLoaded
-        form: null, // Defined later when DOMContentLoaded
+        body: document.body, // Need help fixing! Use $.onready() for now
         title: document.title,
 
         // Character set
@@ -660,13 +690,7 @@ const $ = {
         console.timeEnd("Weblet:HTMLActions");
 
         // Add body and form to $.doc
-        /*
         $.doc.body = queryReturnObject(document.body);
-        console.log(1);
-        $.doc.form = 
-            document.forms[0]
-                ? queryReturnObject(document.forms[0])
-                : null; */
         
     });
 
