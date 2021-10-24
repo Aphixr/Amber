@@ -75,11 +75,11 @@ Weblet is a tool used for web development.
                     super({
                         content: `
                             <tr>
-                                <td>{{ itemName }}</td>
-                                <td>{{ itemPrice }}</td>
+                                <td>{{ name }}</td>
+                                <td>{{ price }}</td>
                             <tr>`,
                         holders: {
-                            itemName: name,
+                            name: name,
                             price: price
                         }
                     });
