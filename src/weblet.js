@@ -1,4 +1,4 @@
-/* Weblet - v0.2.3 (Pre-release) */
+/* Weblet - v0.2.4 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -6,7 +6,7 @@
 // Warn user about this is a pre-release
 // IMPORTANT REMINDER: Remove once v1.0.0 is released!
 console.warn(
-    "You are using Weblet v0.2.3 (pre-release). Do not use in production."
+    "You are using Weblet v0.2.4 (pre-release). Do not use in production."
 );
 
 // Begin time
@@ -23,7 +23,7 @@ if (window.$) {
 const $ = {
     // About Weblet object
     WEBLET: {
-        version: "0.2.3",
+        version: "0.2.4",
         isPreRelease: true
     },
 
@@ -195,200 +195,290 @@ const $ = {
         }
         
         // Proxy handler
-        const proxyHandler = {
-            // Getting a property
-            get(target, property) {
-                // Check property
-                switch (property) {
-                    // Used for verifying an object is $.doc element
-                    case isDocElement:
-                        return true;
-                    
-                    // Give the actual DOM element
-                    case "domElement":
-                        return domEl;
+        const proxyHandler = (domEl) => {
+            return {
+                // Getting a property
+                get(target, property) {
+                    // Check property
+                    switch (property) {
+                        // Used for verifying an object is $.doc element
+                        case isDocElement:
+                            return true;
+                        
+                        // Give the actual DOM element
+                        case "domElement":
+                            return domEl;
 
-                    // Give inner HTML
-                    case "html":
-                        return domEl.innerHTML;
-                    
-                    // Give inner text
-                    case "text":
-                        return domEl.innerText;
-                    
-                    // Get ID
-                    case "id":
-                        return domEl.id;
-                    
-                    // Get class name
-                    case "class":
-                        return domEl.className;
-                    
-                    // Add event listener
-                    case "on":
-                        return (name, callback) => {
-                            // Check data types
-                            if (!checkDataType(name, "string")) {
-                                throw new $[error]("First argument must be a string");
-                            }
-                            if (!checkDataType(callback, "function")) {
-                                throw new $[error]("Second argument must be a callback function");
-                            }
-
-                            // Add event listener
-                            // Try to use element.addEventListener
-                            domEl.setAttribute("on" + name, `(${callback})()`);
-                        };
-                    
-                    // Remove event listener
-                    case "off":
-                        return (name, callback) => {
-                            // Check data types
-                            if (!checkDataType(name, "string")) {
-                                throw new $[error]("First argument must be a string");
-                            }
-                            if (!checkDataType(callback, "function")) {
-                                throw new $[error]("Second argument must be a callback function");
-                            }
-
-                            // Remove event listener
-                            // Try to use element.removeEventListener
-                            domEl.setAttribute("on" + name, "0");
-                        };
-                    
-                    // Append element or component
-                    case "append":
-                        return (obj) => {
-                            // If object is instance of component,
-                            // attach the component
-                            if (obj instanceof $.Component) {
-                                // Set inner HTML
-                                obj.element.innerHTML =
-                                    replaceHolders(obj.content, obj.holders);
-                                
-                                // Append component element
-                                domEl.appendChild(obj.element);
-                                obj.element = null;
-                                
-                                // Create setInterval if obj has loop
-                                const loopm = obj.loop;
-                                if (
-                                    loopm && checkDataType(loopm, "function") &&
-                                    checkDataType(loopm(), "object") &&
-                                    checkDataType(loopm().handler, "function")
-                                ) {
-                                    setInterval(() => {
-                                        obj.loop().handler();
-                                        obj.update();
-                                    }, Number(obj.loop().time));
+                        // Give inner HTML
+                        case "html":
+                            return domEl.innerHTML;
+                        
+                        // Give inner text
+                        case "text":
+                            return domEl.innerText;
+                        
+                        // Get ID
+                        case "id":
+                            return domEl.id;
+                        
+                        // Get class name
+                        case "class":
+                            return domEl.className;
+                        
+                        // Get the tag name (read only)
+                        case "name":
+                            // To lower case added because it returns it in all uppercase
+                            return domEl.tagName.toLowerCase();
+                        
+                        // Return parent element
+                        case "parent":
+                            return queryReturnObject(domEl.parentElement);
+                        
+                        // Return all the child elements in an array
+                        case "children":
+                            return queryReturnObject(domEl.querySelectorAll("*"));
+                        
+                        // Get the first child
+                        case "firstChild":
+                            return queryReturnObject(domEl.children[0]);
+                        
+                        // Get the last child
+                        case "lastChlid":
+                            return queryReturnObject(domEl.children[domEl.children.length - 1]);
+                        
+                        // Add event listener
+                        case "on":
+                            return (name, callback) => {
+                                // Check data types
+                                if (!checkDataType(name, "string")) {
+                                    throw new $[error]("First argument must be a string");
                                 }
-                            }
-
-                            // If object is instance of element,
-                            // attach the element
-                            if (obj.domElement.isDOMCE) {
-                                domEl.appendChild(obj.domElement);
-                            }
-                        };
-                    
-                    // Remove element
-                    case "remove":
-                        return () => {
-                            domEl.remove();
-                        };
-                    
-                    // Append to
-                    // REMOVE in v0.3.0
-                    case "appendTo":
-                        if (!domEl.isDOMCE) {
-                            throw new $[error]("'appendTo' is not a valid property name");
-                        }
-                        return (place) => {
-                            if (checkIsValidSelector(place)) {
-                                const pls = document.querySelectorAll(place);
-                                for (const pl of pls) {
-                                    pl.appendChild(domEl);
+                                if (!checkDataType(callback, "function")) {
+                                    throw new $[error]("Second argument must be a callback function");
                                 }
-                            }
-                        };
-                    
-                    // Query this element
-                    case "query": 
-                        return (sel) => {
-                            if (checkIsValidSelector(sel)) {
-                                return queryReturnObject(domEl.querySelector(sel));
-                            }
-                        };
-                    
-                    // Query all this element
-                    case "queryAll":
-                        return (sel) => {
-                            if (checkIsValidSelector(sel)) {
-                                return queryReturnObject(domEl.querySelectorAll(sel));
-                            }
-                        };
-                    
-                    // Query this element by tag
-                    case "queryByTag":
-                        return (tag) => {
-                            return queryReturnObject(domEl.getElementsByTagName(tag));
-                        };
-                    
-                    // Query this element by id
-                    case "queryById":
-                        return (id) => {
-                            return queryReturnObject(domEl.getElementById(id));
-                        };
-                    
-                    // Query this element by class
-                    case "queryByClass":
-                        return (cls) => {
-                            return queryReturnObject(domEl.getElementsByClassName(cls));
-                        };
-                    
-                    // Invalid property name
-                    default:
-                        if (checkDataType(property, "symbol")) {
-                            throw new $[error](`[symbol] is not a valid property name'`);
-                        } else {
-                            throw new $[error](`'${property}' is not a valid property name'`);
-                        }
-                }
-            },
 
-            // Setting a property
-            set(target, property, value) {
-                // Check property
-                switch (property) {
-                    // Set inner HTML
-                    case "html":
-                        domEl.innerHTML = value;
-                        break;
-                    
-                    // Set inner text
-                    case "text":
-                        domEl.innerText = value;
-                        break;
-                    
-                    // Set ID
-                    case "id":
-                        domEl.id = value;
-                        break;
-                    
-                    // Set class
-                    // Use += " ..." to add a class
-                    // Try to find fix so they don't have to
-                    // put space to add class
-                    case "class":
-                        domEl.className = value;
-                        return;
+                                // Add event listener
+                                // Try to use element.addEventListener
+                                domEl.setAttribute("on" + name, `(${callback})()`);
+                            };
+                        
+                        // Remove event listener
+                        case "off":
+                            return (name, callback) => {
+                                // Check data types
+                                if (!checkDataType(name, "string")) {
+                                    throw new $[error]("First argument must be a string");
+                                }
+                                if (!checkDataType(callback, "function")) {
+                                    throw new $[error]("Second argument must be a callback function");
+                                }
+
+                                // Remove event listener
+                                // Try to use element.removeEventListener
+                                domEl.setAttribute("on" + name, "0");
+                            };
+                        
+                        // Append or prepend an element or component
+                        case "append":
+                        case "prepend":
+                            return (obj) => {
+                                // If object is instance of component,
+                                // attach the component
+                                if (obj instanceof $.Component) {
+                                    // Set inner HTML
+                                    obj.element.innerHTML =
+                                        replaceHolders(obj.content, obj.holders);
+                                    
+                                    // Append component element
+                                    domEl[property + "Child"](obj.element);
+                                    obj.element = null;
+                                    
+                                    // Create setInterval if obj has loop
+                                    const loopm = obj.loop;
+                                    if (
+                                        loopm && checkDataType(loopm, "function") &&
+                                        checkDataType(loopm(), "object") &&
+                                        checkDataType(loopm().handler, "function")
+                                    ) {
+                                        setInterval(() => {
+                                            obj.loop().handler();
+                                            obj.update();
+                                        }, Number(obj.loop().time));
+                                    }
+                                }
+
+                                // If object is instance of element,
+                                // attach the element
+                                if (obj.domElement.isDOMCE) {
+                                    domEl[property + "Child"](obj.domElement);
+                                }
+                            };
+                        
+                        // Remove element
+                        case "remove":
+                            return () => {
+                                domEl.remove();
+                            };
+                        
+                        // Append to
+                        // REMOVE in v0.3.0
+                        case "appendTo":
+                            if (!domEl.isDOMCE) {
+                                throw new $[error]("'appendTo' is not a valid property name");
+                            }
+                            return (place) => {
+                                if (checkIsValidSelector(place)) {
+                                    const pls = document.querySelectorAll(place);
+                                    for (const pl of pls) {
+                                        pl.appendChild(domEl);
+                                    }
+                                }
+                            };
+                        
+                        // Query this element
+                        case "query": 
+                            return (sel) => {
+                                if (checkIsValidSelector(sel)) {
+                                    return queryReturnObject(domEl.querySelector(sel));
+                                }
+                            };
+                        
+                        // Query all this element
+                        case "queryAll":
+                            return (sel) => {
+                                if (checkIsValidSelector(sel)) {
+                                    return queryReturnObject(domEl.querySelectorAll(sel));
+                                }
+                            };
+                        
+                        // Query this element by tag
+                        case "queryByTag":
+                            return (tag) => {
+                                return queryReturnObject(domEl.getElementsByTagName(tag));
+                            };
+                        
+                        // Query this element by id
+                        case "queryById":
+                            return (id) => {
+                                return queryReturnObject(domEl.getElementById(id));
+                            };
+                        
+                        // Query this element by class
+                        case "queryByClass":
+                            return (cls) => {
+                                return queryReturnObject(domEl.getElementsByClassName(cls));
+                            };
+                        
+                        // CSS
+                        case "css":
+                            return new Proxy({}, {
+                                // Getting a CSS property's value
+                                get(target, property) {
+                                    // Note: RegExp.$1 is non-standard, but widely supported
+                                    return domEl.style[
+                                        property.replace(/-([A-z])/g, `${RegExp.$1.toUpperCase()}`)
+                                    ];
+                                },
+
+                                // Setting a CSS property
+                                set(target, property, value) {
+                                    // Note: RegExp.$1 is non-standard, but widely supported
+                                    domEl.style[
+                                        property.replace(/-([A-z])/g, `${RegExp.$1.toUpperCase()}`)
+                                    ] = value.toString();
+                                }
+                            });
+                        
+                        // Attributes
+                        case "attr":
+                            return new Proxy({}, {
+                                // Getting an attribute
+                                get(target, property) {
+                                    return (() => {
+                                        try {
+                                            return domEl.getAttribute(property.toString());
+                                        } catch (err) {
+                                            throw new $[error]("Invalid attribute name");
+                                        }
+                                    })();
+                                },
+
+                                // Setting an attribute
+                                set(target, property, value) {
+                                    try {
+                                        domEl.setAttribute(property.toString(), value);
+                                    } catch (err) {
+                                        throw new $[error]("Invalid attribute name");
+                                    }
+                                },
+
+                                // Check if attribute exists (name in el.attr)
+                                has(target, property) {
+                                    try {
+                                        if (domEl.hasAttribute(property.toString())) {
+                                            return true;
+                                        } else {
+                                            return false;
+                                        }
+                                    } catch (err) {
+                                        throw new $[error]("Invalid attribute name");
+                                    }
+                                },
+
+                                // Delete an attribute (delete el.attr.name)
+                                deleteProperty(target, property) {
+                                    try {
+                                        domEl.removeAttribute(property.toString());
+                                    } catch (err) {
+                                        throw new $[error]("Invalid attribute name");
+                                    }
+                                }
+                            });
+                        
+                        // Invalid property name
+                        default:
+                            if (checkDataType(property, "symbol")) {
+                                throw new $[error](`[symbol] is not a valid property name'`);
+                            } else {
+                                throw new $[error](`'${property}' is not a valid property name'`);
+                            }
+                    }
+                },
+
+                // Setting a property
+                set(target, property, value) {
+                    // Check property
+                    switch (property) {
+                        // Set inner HTML
+                        case "html":
+                            domEl.innerHTML = value;
+                            break;
+                        
+                        // Set inner text
+                        case "text":
+                            domEl.innerText = value;
+                            break;
+                        
+                        // Set ID
+                        case "id":
+                            domEl.id = value;
+                            break;
+                        
+                        // Set class
+                        // Use += " ..." to add a class
+                        // Try to find fix so they don't have to
+                        // put space to add class
+                        case "class":
+                            domEl.className = value;
+                            return;
+                    }
                 }
-            }
+            };
         };
 
         // Return the object for just one element
         if (domEl instanceof Element) {
-            return new Proxy(domEl, proxyHandler);
+            return new Proxy(domEl, proxyHandler(domEl));
         }
 
         // Return the object for multiple selected elements
@@ -397,7 +487,7 @@ const $ = {
 
             // Add to return array
             for (let i = 0, l = domEl.length; i < l; i++) {
-                domElsReturnArray.push(new Proxy(domEl, proxyHandler));
+                domElsReturnArray.push(new Proxy(domEl[i], proxyHandler(domEl[i])));
             }
 
             // Return array
