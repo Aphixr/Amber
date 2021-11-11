@@ -1,4 +1,4 @@
-/* Weblet - v0.2.4 (Pre-release) */
+/* Amber - v0.2.5 (Pre-release) */
 
 // Use strict mode
 "use strict";
@@ -6,26 +6,24 @@
 // Warn user about this is a pre-release
 // IMPORTANT REMINDER: Remove once v1.0.0 is released!
 console.warn(
-    "You are using Weblet v0.2.4 (pre-release). Do not use in production."
+    "You are using Amber v0.2.5 (pre-release). Do not use in production."
 );
 
 // Begin time
-console.time("Weblet:Load");
+console.time("Amber:Load");
 
 // If $ object is already defined
 if (window.$) {
     throw new Error(
-        "Do not define your variables with '$', it is used in Weblet"
+        "Do not define your variables with '$', it is used in Amber"
     );
 }
 
-// Weblet object
+// Amber object
 const $ = {
-    // About Weblet object
-    WEBLET: {
-        version: "0.2.4",
-        isPreRelease: true
-    },
+    // About Amber
+    _version: "0.2.5",
+    _isPreRelease: true,
 
     // Classes
     Component: undefined,
@@ -78,13 +76,13 @@ const $ = {
         return true;
     };
 
-    // Custom Weblet error class
+    // Custom error class
     // Symbol used so that error class cannot be used from outside
     const error = Symbol();
     $[error] = class extends Error {
         constructor(msg) {
             super(msg);
-            this.name = "WebletError";
+            this.name = "AmberError";
             this.message = msg;
         }
     };
@@ -184,7 +182,7 @@ const $ = {
         }
     };
 
-    // Weblet element
+    // Amber element
     // For document query functions
     // Returns an object with methods and properties that
     // can read or change the element(s) selected
@@ -674,7 +672,7 @@ const $ = {
     window.addEventListener("DOMContentLoaded", () => {
 
         // Time
-        console.time("Weblet:HTMLActions");
+        console.time("Amber:HTMLActions");
 
         // Document object (for performance)
         const doc = document;
@@ -777,7 +775,7 @@ const $ = {
         }
 
         // Time end
-        console.timeEnd("Weblet:HTMLActions");
+        console.timeEnd("Amber:HTMLActions");
 
         // Add body and form to $.doc
         $.doc.body = queryReturnObject(document.body);
@@ -787,7 +785,7 @@ const $ = {
 })();
 
 // End time
-console.timeEnd("Weblet:Load");
+console.timeEnd("Amber:Load");
 
 
 

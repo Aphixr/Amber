@@ -3,8 +3,7 @@ tests/
 min/
 
 # Text files
-retired.txt
-plans.txt
+*.txt
 
 # Shell
 *.sh

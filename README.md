@@ -1,8 +1,8 @@
-# Weblet
+# Amber
 
 ## About
 
-Weblet is a tool used for web development.
+Amber is a tool used for web development.
 
 ## Basic Usage
 
@@ -13,8 +13,8 @@ Weblet is a tool used for web development.
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Weblet List Example</title>
-        <script src="weblet.js"></script>
+        <title>Amber List Example</title>
+        <script src="amber.js"></script>
     </head>
     <body>
         <!-- Template -->
@@ -41,8 +41,8 @@ Weblet is a tool used for web development.
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Weblet Items for Sale Example</title>
-        <script src="weblet.js"></script>
+        <title>Amber Items for Sale Example</title>
+        <script src="amber.js"></script>
     </head>
     <body>
         <h2>Items for Sale</h2>
