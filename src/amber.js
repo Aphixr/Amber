@@ -21,6 +21,12 @@ if (window.$) {
 
 // Amber object
 const $ = {
+    // About Amber (remove in v0.3.0)
+    WEBLET: {
+        version: "0.2.5",
+        isPreRelease: true
+    },
+
     // About Amber
     _version: "0.2.5",
     _isPreRelease: true,
@@ -35,7 +41,10 @@ const $ = {
     cookies: null,
 
     // On ready
-    onready: undefined
+    onready: undefined,
+
+    // HTML variables
+    vars: {}
 };
 
 // Main
@@ -700,6 +709,38 @@ const $ = {
             })(xExpr.innerText);
         }
 
+        // Variables
+        for (const xVar of doc.querySelectorAll("x-var")) {
+            $.vars[xVar.getAttribute("name").trim()] = xVar.innerHTML;
+            xVar.style.display = "none";
+        }
+
+        // Replace {{ and }} with <x-var-using>
+        doc.body.innerHTML =
+            doc.body.innerHTML
+                .replace(/\@\{([^}]+)\}/g, "<x-var-using>$1</x-var-using>");
+        
+        // Hide all using variables, in case it throws an error
+        for (const xVarUsing of doc.querySelectorAll("x-var-using")) {
+            xVarUsing.style.display = "none";
+        }
+
+        // Show values of the variable
+        for (const xVarUsing of doc.querySelectorAll("x-var-using")) {
+            const varName = xVarUsing.innerHTML.trim();
+
+            // If variable is declared, show it
+            if (xVarUsing.innerHTML = $.vars[varName] !== undefined) {
+                xVarUsing.innerHTML = $.vars[varName];
+                xVarUsing.style.display = "inline";
+            }
+            
+            // Otherwise, throw an error
+            else {
+                throw new $[error](`'${varName}' was not declared`);
+            }
+        }
+
         // If-then
         for (const xIf of doc.querySelectorAll("[x-if]")) {
 
@@ -727,6 +768,21 @@ const $ = {
                 })() : undefined;
             }
 
+        }
+
+        // Show or hide elements
+        for (const xShow of doc.querySelectorAll("[x-show]")) {
+            if ((() => {
+                try {
+                    return eval(xShow.getAttribute("x-show"));
+                } catch (err) {
+                    throw new $[error](`For x-show="${xShow.getAttribute("x-show")}"\n${err}`);
+                }
+            })()) {
+                xShow.style.display = "unset";
+            } else {
+                xShow.style.display = "none";
+            }
         }
 
         // Hide all templates
